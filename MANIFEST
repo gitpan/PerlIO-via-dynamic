@@ -1,0 +1,8 @@
+MANIFEST
+CHANGES
+README
+Makefile.PL
+dynamic.pm
+t/1use.t
+t/2basic.t
+META.yml                                 Module meta-data (added by MakeMaker)
