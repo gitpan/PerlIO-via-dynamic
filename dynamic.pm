@@ -1,6 +1,6 @@
 package PerlIO::via::dynamic;
 use strict;
-our $VERSION = '0.02';
+our $VERSION = '0.10';
 
 =head1 NAME
 
@@ -19,21 +19,47 @@ PerlIO::via::dynamic - dynamic PerlIO layers
 
 =head1 DESCRIPTION
 
-PerlIO::via::dynamic is used for creating dynamic PerlIO layers. It is
-useful when the behavior or the layer depends on variables. You should
-not use this module as via layer directly (ie :via(dynamic)).
+C<PerlIO::via::dynamic> is used for creating dynamic L<PerlIO>
+layers. It is useful when the behavior or the layer depends on
+variables. You should not use this module as via layer directly (ie
+:via(dynamic)).
 
 Use the constructor to create new layers, with two arguments:
-translate and untranslate. Then use C<$p-E<gt>via ($fh)> to wrap the
-handle.
+translate and untranslate. Then use C<$p->via ($fh)> to wrap the
+handle.  Once <$fh> is destroyed, the temporary namespace for the IO
+layer will be removed.
 
 Note that PerlIO::via::dynamic uses the scalar fields to reference to
-the object representing the dynamic namespace. If you
+the object representing the dynamic namespace.
+
+=head1 OPTIONS
+
+=over
+
+=item translate
+
+A function that translate buffer upon I<write>.
+
+=item untranslate
+
+A function that translate buffer upon I<read>.
+
+=item use_read
+
+Use C<READ> instead of C<FILL> for the layer.  Useful when caller
+expect exact amount of data from read, and the C<untranslate> function
+might return different length.
+
+By default C<PerlIO::via::dynamic> creates line-based layer to make
+C<translate> implementation easier.
+
+=back
 
 =cut
 
 use Symbol qw(delete_package gensym);
 use Scalar::Util qw(weaken);
+use IO::Handle;
 
 sub PUSHED {
     die "this should not be via directly"
@@ -54,16 +80,24 @@ sub translate {
 sub untranslate {
 }
 
-sub FILL {
+sub _FILL {
     my $line = readline( $_[1] );
     $_[0]->untranslate ($line) if defined $line;
     $line;
 }
 
+sub READ {
+    my $ret = read $_[3], $_[1], $_[2];
+    return $ret unless $ret > 0;
+    $_[0]->untranslate ($_[1]);
+    return length ($_[1]);
+}
+
 sub WRITE {
     my $buf = $_[1];
     $_[0]->translate($buf);
-    (print {$_[2]} $buf) ? length($buf) : -1;
+    $_[2]->autoflush (1);
+    (print {$_[2]} $buf) ? length ($buf) : -1;
 }
 
 sub SEEK {
@@ -82,6 +116,14 @@ our \@ISA = qw($class);
 | or die $@;
 
     no strict 'refs';
+    unless ($arg{use_read}) {
+	*{"$package\::FILL"} = *PerlIO::via::dynamic::_FILL;
+    }
+    delete $arg{use_read};
+    if ($arg{no_gc}) {
+	$self->{nogc} = 1;
+    }
+    delete $arg{no_gc};
     for (keys %arg) {
 	*{"$package\::$_"} = $arg{$_};
     }

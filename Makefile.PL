@@ -1,16 +1,15 @@
 #!/usr/bin/perl
-use ExtUtils::MakeMaker;
 
-WriteMakefile(
-    AUTHOR		=> 'Chia-liang Kao (clkao@clkao.org)',
-    ABSTRACT		=> 'Dynamic PerlIO layers',
-    NAME		=> 'PerlIO::via::dynamic',
-    VERSION_FROM	=> 'dynamic.pm',
-    DISTNAME		=> 'PerlIO-via-dynamic',
+use inc::Module::Install;
+use 5.008;
 
-    dist		=> {
-        COMPRESS	=> 'gzip -9',
-        SUFFIX		=> '.gz',
-    },
-);
+name		('PerlIO-via-dynamic');
+author		('Chia-liang Kao <clkao@clkao.org>');
+abstract_from	('dynamic.pm');
+license		('perl');
+version_from	('dynamic.pm');
 
+include('ExtUtils::AutoInstall');
+auto_install();
+
+WriteAll( sign => 1 );
