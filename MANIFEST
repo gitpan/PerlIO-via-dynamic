@@ -19,3 +19,4 @@ SIGNATURE			Public-key signature (added by MakeMaker)
 t/1use.t
 t/2basic.t
 t/3gc.t
+t/4gc-array.t

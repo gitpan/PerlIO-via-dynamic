@@ -1,6 +1,6 @@
 package PerlIO::via::dynamic;
 use strict;
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 =head1 NAME
 
@@ -116,18 +116,14 @@ our \@ISA = qw($class);
 | or die $@;
 
     no strict 'refs';
-    unless ($arg{use_read}) {
+    for (qw/translate untranslate/) {
+	*{"$package\::$_"} = delete $arg{$_}
+	    if exists $arg{$_}
+    }
+    %$self = %arg;
+    unless ($self->{use_read}) {
 	*{"$package\::FILL"} = *PerlIO::via::dynamic::_FILL;
     }
-    delete $arg{use_read};
-    if ($arg{no_gc}) {
-	$self->{nogc} = 1;
-    }
-    delete $arg{no_gc};
-    for (keys %arg) {
-	*{"$package\::$_"} = $arg{$_};
-    }
-
     bless $self, $package;
     ${"$package\::EGO"} = $self;
     weaken ${"$package\::EGO"};
@@ -144,7 +140,13 @@ sub via {
     }
     binmode ($fh, $via) or die $!;
     if (defined ${*$fh}) {
-	warn "handle $fh cannot hold references, namespace won't be cleaned";
+	if (defined @{*$fh}) {
+	    warn "handle $fh cannot hold references, namespace won't be cleaned";
+	    $self->{nogc} = 1;
+	}
+	else {
+	    ${*$fh}[0] = $self;
+	}
     }
     else {
 	${*$fh} = $self;
