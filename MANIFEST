@@ -5,4 +5,5 @@ Makefile.PL
 dynamic.pm
 t/1use.t
 t/2basic.t
+t/3gc.t
 META.yml                                 Module meta-data (added by MakeMaker)

@@ -1,6 +1,6 @@
 package PerlIO::via::dynamic;
 use strict;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 NAME
 
@@ -14,23 +14,38 @@ PerlIO::via::dynamic - dynamic PerlIO layers
     sub { $_[1] =~ s/\$Filename[:\w\s\-\.\/\\]*\$/\$Filename: $fname\$/e},
    untranslate =>
     sub { $_[1] =~ s/\$Filename[:\w\s\-\.\/\\]*\$/\$Filename\$/});
- binmode $fh, $p->via;
+ $p->via ($fh);
+ binmode $fh, $p->via; # deprecated
 
 =head1 DESCRIPTION
 
 PerlIO::via::dynamic is used for creating dynamic PerlIO layers. It is
-useful when the behavior or the layer depends on variables.
+useful when the behavior or the layer depends on variables. You should
+not use this module as via layer directly (ie :via(dynamic)).
 
-You need to use the constructor to create new layers, with two
-arguments: translate and untranslate. Then use C<$p-E<gt>via> as
-layers in binmode or open.
+Use the constructor to create new layers, with two arguments:
+translate and untranslate. Then use C<$p-E<gt>via ($fh)> to wrap the
+handle.
+
+Note that PerlIO::via::dynamic uses the scalar fields to reference to
+the object representing the dynamic namespace. If you
 
 =cut
+
+use Symbol qw(delete_package gensym);
+use Scalar::Util qw(weaken);
 
 sub PUSHED {
     die "this should not be via directly"
 	if $_[0] eq __PACKAGE__;
-    bless \*PUSHED, $_[0];
+    my $p = bless gensym(), $_[0];
+
+    no strict 'refs';
+    # make sure the blessed glob is destroyed
+    # earlier than the object representing the namespace.
+    ${*$p} = ${"$_[0]::EGO"};
+
+    return $p;
 }
 
 sub translate {
@@ -70,21 +85,47 @@ our \@ISA = qw($class);
     for (keys %arg) {
 	*{"$package\::$_"} = $arg{$_};
     }
+
     bless $self, $package;
+    ${"$package\::EGO"} = $self;
+    weaken ${"$package\::EGO"};
     return $self;
 }
 
 sub via {
-    ':via('.ref ($_[0]).')';
+    my ($self, $fh) = @_;
+    my $via = ':via('.ref ($_[0]).')';
+    unless ($fh) {
+	# 0.01 compatibility
+	$self->{nogc} = 1;
+	return $via;
+    }
+    binmode ($fh, $via) or die $!;
+    if (defined ${*$fh}) {
+	warn "handle $fh cannot hold references, namespace won't be cleaned";
+    }
+    else {
+	${*$fh} = $self;
+    }
 }
 
-=head1 TODO
+sub DESTROY {
+    my ($self) = @_;
+    return unless UNIVERSAL::isa ($self, 'HASH');
+    return if $self->{nogc};
 
-The namespaces created by PerlIO::via::dynamic::new is never
-destroyed. a parameter should be used to determine if the lifetime of
-the namespace is the same as the PerlIO::via::dynamic
-object. Otherwise it should be associated with the handles that use
-it.
+    no strict 'refs';
+    my $ref = ref($self);
+    my ($leaf) = ($ref =~ /([^:]+)$/);
+    $leaf .= '::';
+
+    for my $sym (keys %{$ref.'::'}) {
+	undef ${$ref.'::'}{$sym}
+	    if $sym;
+    }
+
+    delete $PerlIO::via::{$leaf};
+}
 
 =head1 AUTHORS
 
