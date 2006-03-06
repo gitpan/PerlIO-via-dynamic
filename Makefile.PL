@@ -12,4 +12,4 @@ version_from	('dynamic.pm');
 include('ExtUtils::AutoInstall');
 auto_install();
 
-WriteAll( sign => 1 );
+WriteAll( sign => 0 );
