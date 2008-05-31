@@ -1,6 +1,6 @@
 package PerlIO::via::dynamic;
 use strict;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 
@@ -66,6 +66,12 @@ sub PUSHED {
 	if $_[0] eq __PACKAGE__;
     my $p = bless gensym(), $_[0];
 
+    if ($] == 5.010000 && ref($_[-1]) eq 'GLOB') {
+        # This is to workaround a core bug in perl 5.10.0, see
+        # http://rt.perl.org/rt3/Public/Bug/Display.html?id=54934
+        require Internals;
+        Internals::SetRefCount($_[-1], Internals::GetRefCount($_[-1])+1);
+    }
     no strict 'refs';
     # make sure the blessed glob is destroyed
     # earlier than the object representing the namespace.

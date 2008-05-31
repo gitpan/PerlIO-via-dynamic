@@ -1,3 +1,7 @@
+[Changes for 0.13 - 31 May, 2008]
+
+* Workaround a refcnt bug in Perl 5.10.0
+
 [Changes for 0.12 - 6 Mar, 2006]
 
 * Dummy release, as I accidentally delete the previous
