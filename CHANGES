@@ -1,3 +1,7 @@
+[Changes for 0.14 - 3 Nov, 2012]
+
+* Update to not warn on perl 5.16 and above
+
 [Changes for 0.13 - 31 May, 2008]
 
 * Workaround a refcnt bug in Perl 5.10.0

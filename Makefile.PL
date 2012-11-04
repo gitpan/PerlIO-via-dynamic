@@ -13,4 +13,4 @@ requires        ('Internals') if $] == 5.010000;
 include('ExtUtils::AutoInstall');
 auto_install();
 
-WriteAll;#( sign => 1 );
+WriteAll( sign => 1 );
